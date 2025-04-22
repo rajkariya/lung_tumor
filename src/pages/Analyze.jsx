@@ -179,7 +179,7 @@ const Analyze = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:3000/send-report", {
+      const response = await axios.post(`${import.meta.env.VITE_NODEJS_URL}/send-report`, {
         patientEmail: selectedPatient.email,
         patientName: selectedPatient.name,
         phone: selectedPatient.phone,
@@ -270,7 +270,7 @@ const Analyze = () => {
 
         <div>
           <Label htmlFor="ctScan" className="text-foreground">
-            Upload CT Scan (required)
+            Upload Image (required)
           </Label>
           <Input
             id="ctScan"
@@ -306,7 +306,7 @@ const Analyze = () => {
                 Analyzing...
               </>
             ) : (
-              "Analyze CT Scan"
+              "Analyze Scan"
             )}
           </Button>
 

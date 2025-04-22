@@ -29,14 +29,18 @@ def load_keras_model():
 
 def predict(model, image_array, threshold=0.5):
     try:
-        # Add batch dimension
         image_array = np.expand_dims(image_array, axis=0)
         
-        # Make prediction
-        prediction = model.predict(image_array)
+        # Get raw prediction
+        raw_prediction = model.predict(image_array)
+        print(raw_prediction)
+        logger.info(f"Raw model output: {raw_prediction}")
         
-        # Assuming binary classification: [no_tumor_prob, tumor_prob]
-        tumor_prob = prediction[0][1]
+        # Get probabilities
+        no_tumor_prob = raw_prediction[0][0]
+        tumor_prob = raw_prediction[0][1]
+        logger.info(f"Probability of no tumor: {no_tumor_prob:.4f}")
+        logger.info(f"Probability of tumor: {tumor_prob:.4f}")
         
         if tumor_prob >= threshold:
             return "Tumor", float(tumor_prob)

@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_FASTAPI_URL || 'http://localhost:8000';
 
 export const analyzeCTScan = async (patientId, file) => {
   const formData = new FormData();
@@ -14,7 +14,10 @@ export const analyzeCTScan = async (patientId, file) => {
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}`);
     }
-    return await response.json();
+    
+    const result = await response.json();
+    console.log('Complete API Response:', result);
+    return result;
   } catch (error) {
     console.error('Error analyzing CT scan:', error);
     throw error;

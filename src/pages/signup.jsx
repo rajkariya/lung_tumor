@@ -15,6 +15,7 @@ const Signup = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const auth = getAuth();
+  const NODE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/";
 
   const validateEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -37,7 +38,7 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/send-signup-otp", {
+      const response = await fetch(`${NODE_API_URL}/send-signup-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,7 +65,7 @@ const Signup = () => {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:3000/verify-otp", {
+      const response = await fetch(`${NODE_API_URL}/verify-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

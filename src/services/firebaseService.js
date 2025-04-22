@@ -1,21 +1,13 @@
 import { database, ref, set, push, get, update } from "@/firebase/firebase";
 
-export const saveAnalysisResult = async (result, imageFile) => {
+export const saveAnalysisResult = async (result) => {
   try {
-    // Convert image to base64
-    const reader = new FileReader();
-    const base64Image = await new Promise((resolve) => {
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(imageFile);
-    });
 
-    // Save analysis result to Realtime Database
     const analysesRef = ref(database, "analyses");
     const newAnalysisRef = push(analysesRef);
     
     await set(newAnalysisRef, {
       ...result,
-      imageUrl: base64Image,
       status: "diagnosed", // initial status
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -64,16 +56,20 @@ export const getDashboardStats = async () => {
     }
 
     const analyses = Object.values(snapshot.val());
-    const totalPatients = analyses.length;
+    
+    // Get unique patient IDs
+    const uniquePatientIds = new Set(analyses.map(analysis => analysis.patient_id));
+    const totalPatients = uniquePatientIds.size;
+    
+    // Count diagnoses
     const diagnosed = analyses.filter(analysis => analysis.has_tumor).length;
-    const inTreatment = analyses.filter(analysis => analysis.status === "in_treatment").length;
-    const recovering = analyses.filter(analysis => analysis.status === "recovering").length;
+    const noTumor = analyses.filter(analysis => !analysis.has_tumor).length;
 
     return {
       totalPatients,
       diagnosed,
-      inTreatment,
-      recovering
+      noTumor,
+      totalScans: analyses.length
     };
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);

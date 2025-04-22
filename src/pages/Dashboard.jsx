@@ -15,6 +15,10 @@ const columns = [
     header: "Patient ID",
   },
   {
+    accessorKey: "name",
+    header: "Patient Name",
+  },
+  {
     accessorKey: "prediction",
     header: "Diagnosis",
   },
@@ -34,17 +38,15 @@ const columns = [
     cell: ({ row }) => {
       const analysis = row.original;
       
-      const viewImage = () => {
-        window.open(analysis.imageUrl, '_blank');
-      };
-      
       const downloadImage = () => {
-        const link = document.createElement('a');
-        link.href = analysis.imageUrl;
-        link.download = `ct-scan-${analysis.patient_id}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        if (analysis.imageUrl) {
+          const link = document.createElement('a');
+          link.href = analysis.imageUrl;
+          link.download = `ct-scan-${analysis.patient_id}.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       };
       
       return (
@@ -52,15 +54,8 @@ const columns = [
           <Button 
             variant="outline" 
             size="sm"
-            onClick={viewImage}
-          >
-            <Eye className="h-4 w-4 mr-1" />
-            View
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
             onClick={downloadImage}
+            disabled={!analysis.imageUrl}
           >
             <Download className="h-4 w-4 mr-1" />
             Download
@@ -88,6 +83,7 @@ export default function Dashboard() {
   const [filteredAnalyses, setFilteredAnalyses] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientAnalyses, setPatientAnalyses] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,6 +95,35 @@ export default function Dashboard() {
         setStats(statsData);
         setAnalyses(analysesData);
         setFilteredAnalyses(analysesData);
+
+        // Process analyses data into monthly statistics
+        const monthlyStats = {};
+        analysesData.forEach(analysis => {
+          const date = new Date(analysis.createdAt);
+          const month = date.toLocaleString('default', { month: 'short' });
+          
+          if (!monthlyStats[month]) {
+            monthlyStats[month] = {
+              month,
+              diagnosed: 0,
+              undiagnosed: 0
+            };
+          }
+          
+          if (analysis.has_tumor) {
+            monthlyStats[month].diagnosed++;
+          } else {
+            monthlyStats[month].undiagnosed++;
+          }
+        });
+
+        // Convert to array and sort by month
+        const sortedMonthlyData = Object.values(monthlyStats).sort((a, b) => {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return months.indexOf(a.month) - months.indexOf(b.month);
+        });
+
+        setMonthlyData(sortedMonthlyData);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -166,17 +191,8 @@ export default function Dashboard() {
   }
 
   const pieChartData = [
-    { name: 'Diagnosed', value: stats?.diagnosed || 0 },
-    { name: 'Undiagnosed', value: (stats?.totalPatients || 0) - (stats?.diagnosed || 0) },
-  ];
-
-  const monthlyData = [
-    { month: 'Jan', diagnosed: 12, undiagnosed: 8 },
-    { month: 'Feb', diagnosed: 15, undiagnosed: 10 },
-    { month: 'Mar', diagnosed: 18, undiagnosed: 7 },
-    { month: 'Apr', diagnosed: 14, undiagnosed: 9 },
-    { month: 'May', diagnosed: 20, undiagnosed: 12 },
-    { month: 'Jun', diagnosed: 16, undiagnosed: 8 },
+    { name: 'Diagnosed with Tumor', value: stats?.diagnosed || 0 },
+    { name: 'No Tumor', value: stats?.noTumor || 0 },
   ];
 
   return (
@@ -192,20 +208,20 @@ export default function Dashboard() {
             className="bg-white"
           />
           <StatCard
-            title="Diagnosed with Lung Tumor"
+            title="Total Scans with Tumor"
             value={stats?.diagnosed || 0}
             className="bg-white"
           />
           <StatCard
-            title="Undiagnosed"
-            value={(stats?.totalPatients || 0) - (stats?.diagnosed || 0)}
+            title="Total Scans without Tumor"
+            value={stats?.noTumor || 0}
             className="bg-white"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-4">Diagnosis Distribution</h2>
+            <h2 className="text-lg font-semibold mb-4">Scan Results Distribution</h2>
             <div className="h-64">
               <PieChart width={400} height={250}>
                 <Pie
@@ -217,7 +233,7 @@ export default function Dashboard() {
                   fill="#8884d8"
                   paddingAngle={5}
                   dataKey="value"
-                  label
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
                   {pieChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -230,7 +246,7 @@ export default function Dashboard() {
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-4">Monthly Diagnosis Trends</h2>
+            <h2 className="text-lg font-semibold mb-4">Monthly Scan Results</h2>
             <div className="h-64">
               <BarChart
                 width={400}
@@ -243,8 +259,8 @@ export default function Dashboard() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="diagnosed" fill="#0088FE" name="Diagnosed" />
-                <Bar dataKey="undiagnosed" fill="#00C49F" name="Undiagnosed" />
+                <Bar dataKey="diagnosed" fill="#0088FE" name="Scans with Tumor" />
+                <Bar dataKey="undiagnosed" fill="#00C49F" name="Scans without Tumor" />
               </BarChart>
             </div>
           </div>
@@ -296,7 +312,31 @@ export default function Dashboard() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => window.open(analysis.imageUrl, '_blank')}
+                            onClick={() => {
+                              console.log('Analysis data:', analysis);
+                              if (analysis.imageUrl) {
+                                console.log('Image URL:', analysis.imageUrl);
+                                const w = window.open('about:blank', '_blank');
+                                w.document.write(`
+                                  <html>
+                                    <head>
+                                      <title>CT Scan View</title>
+                                      <style>
+                                        body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f0f0; }
+                                        img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+                                      </style>
+                                    </head>
+                                    <body>
+                                      <img src="${analysis.imageUrl}" alt="CT Scan" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x400?text=Image+Not+Available';" />
+                                    </body>
+                                  </html>
+                                `);
+                                w.document.close();
+                              } else {
+                                console.log('No image URL found in analysis data');
+                                alert('No image available for this analysis');
+                              }
+                            }}
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View
@@ -305,12 +345,14 @@ export default function Dashboard() {
                             variant="outline" 
                             size="sm"
                             onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = analysis.imageUrl;
-                              link.download = `ct-scan-${analysis.patient_id}.jpg`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
+                              if (analysis.imageUrl) {
+                                const link = document.createElement('a');
+                                link.href = analysis.imageUrl;
+                                link.download = `ct-scan-${analysis.patient_id}.jpg`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }
                             }}
                           >
                             <Download className="h-4 w-4 mr-1" />
